@@ -1,6 +1,12 @@
+import json
+import os
+
 from pypdf import PdfReader
 
-FILE_PATH = "data/raw/gdpr.pdf"
+import config
+
+PDF_PATH = os.path.join(config.RAW_DIR, "gdpr.pdf")
+OUTPUT_PATH = os.path.join(config.PROCESSED_DIR, "gdpr.json")
 
 
 def load_pdf(file_path: str) -> list[str]:
@@ -12,17 +18,34 @@ def load_pdf(file_path: str) -> list[str]:
     return page_list
 
 
+def extract_to_json(pdf_path: str, output_path: str, regulation: str) -> None:
+    pages = load_pdf(pdf_path)
+    records = []
+    skipped = 0
+    total_char = 0
+
+    # loop over and build dict for each page
+    for index, page_content in enumerate(pages):
+        page_num = index + 1
+        if not page_content.strip():
+            skipped += 1
+        else:
+            page_dict = {}
+            page_dict["regulation"] = regulation
+            page_dict["page"] = page_num
+            page_dict["text"] = page_content
+            records.append(page_dict)
+            total_char += len(page_content)
+
+    # Write records in the json
+    with open(output_path, "w", encoding="utf-8") as file:
+        json.dump(records, file, ensure_ascii=False, indent=1)
+
+    print("--- summary ---")
+    print("Pages kept:", len(records))
+    print("Pages skipped:", skipped)
+    print("Total characters:", total_char)
+
+
 if __name__ == "__main__":
-    pages = load_pdf(FILE_PATH)
-    page_count = len(pages)
-
-    print("total page count", page_count)
-
-    print("First 500 character for page 1\n")
-    p1_500 = pages[0][0:500]
-    print(p1_500)
-
-    print("-" * 40)
-    print("First 500 character for page 20\n")
-    p20_500 = pages[19][0:500]
-    print(p20_500)
+    extract_to_json(PDF_PATH, OUTPUT_PATH, "gdpr")
