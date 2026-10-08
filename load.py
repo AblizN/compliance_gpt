@@ -30,11 +30,11 @@ def extract_to_json(pdf_path: str, output_path: str, regulation: str) -> None:
         if not page_content.strip():
             skipped += 1
         else:
-            page_dict = {}
-            page_dict["regulation"] = regulation
-            page_dict["page"] = page_num
-            page_dict["text"] = page_content
-            records.append(page_dict)
+            records.append({
+                "regulation": regulation,
+                "page": page_num,
+                "text": page_content
+            })
             total_char += len(page_content)
 
     # Write records in the json
