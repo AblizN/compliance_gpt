@@ -11,7 +11,10 @@ client = chromadb.PersistentClient(path=config.CHROMA_DIR)
 
 
 def get_collection():
-    return client.get_or_create_collection(name="regulations")
+    return client.get_or_create_collection(
+        name="regulations",
+        metadata={"hnsw:space": "cosine"}
+    )
 
 
 if __name__ == "__main__":
@@ -22,11 +25,12 @@ if __name__ == "__main__":
 
     ids, documents, metadatas = [], [], []
     for chunk in chunks[:10]:
-        ids.append(f"{chunk['regulation']}-p{chunk['page']}-c{chunk['chunk_index']}")
+        ids.append(
+            f"{chunk['regulation']}-p{chunk['page']}-c{chunk['chunk_index']}")
         documents.append(chunk["text"])
-        metadatas.append({"regulation": chunk["regulation"], "page": chunk["page"]})
+        metadatas.append(
+            {"regulation": chunk["regulation"], "page": chunk["page"]})
 
     collection.upsert(ids=ids, documents=documents, metadatas=metadatas)
 
     print(collection.count())
-
