@@ -19,3 +19,13 @@ Embedded three sentences and compared them with hand-written cosine similarity (
 - Either one vs "The pizza in Naples is excellent": **0.07** and **0.01**.
 
 Meaning gets compared, not vocabulary: the model learned from huge amounts of text that "DPIA" and "impact assessment" appear in the same contexts, so it places them close together. A question worded differently from the regulation should still find the right chunk.
+
+## Search: first look (top-5 by cosine, text-embedding-3-small)
+
+Ran five questions through search.py. Two results I did not expect.
+
+- **The acronym costs a quarter of the score.** "What is a DPIA?" returns the right chunk (page 53, Article 35) at **0.476**. The spelled-out "What is a data protection impact assessment?" returns the same chunk at **0.735**. Same chunk, same rank, very different confidence. The regulation never writes "DPIA", so the question and the chunk share no surface vocabulary; the model still knows the acronym from training data, which is why the ranking survives, but the chunk's own words pull the match down. A fixed similarity threshold would have rejected a correct hit here. Guess: short acronym questions need query expansion ("DPIA (data protection impact assessment)") before embedding.
+
+- **Recitals outrank the article they explain.** For "What are the lawful bases for processing?" all five hits are recitals from pages 8 and 9. Article 6, the actual list of lawful bases on page 36, does not appear. Recitals are written as explanatory prose, which reads like a question; Article 6 is a terse enumerated list. Cosine similarity rewards the prose. For a cited answer the article is the authoritative source, so similarity alone cannot pick the right chunk. Guess: this needs article numbers in chunk metadata so retrieval can prefer or at least label article text over recital text.
+
+Also visible in the output: the mid-word cuts from the chunk-quality section now show up as rank-1 snippets ("ice of the data protection officer", "Rectif ication"). The chunker fixes are no longer optional.
