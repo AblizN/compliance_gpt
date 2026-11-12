@@ -1,5 +1,4 @@
 import argparse
-import sys
 from typing import Any, cast
 
 from chromadb.api.types import QueryResult
@@ -46,14 +45,6 @@ def print_results(results: QueryResult) -> None:
         print(f"   {snippet}")
 
 
-def parse_args(argv: list[str]) -> argparse.Namespace:
-    """search.py "question" [--k 5]"""
-    parser = argparse.ArgumentParser(description="Search the GDPR vector store.")
-    parser.add_argument("question")
-    parser.add_argument("--k", type=int, default=5)
-    return parser.parse_args(argv)
-
-
 QUESTIONS = [
     "What is a DPIA?",
     "What are the lawful bases for processing?",
@@ -64,8 +55,13 @@ QUESTIONS = [
 
 
 if __name__ == "__main__":
-    if len(sys.argv) > 1:
-        args = parse_args(sys.argv[1:])
+    # search.py "question" [--k 5], or no arguments for the demo run
+    parser = argparse.ArgumentParser(description="Search the GDPR vector store.")
+    parser.add_argument("question", nargs="?")
+    parser.add_argument("--k", type=int, default=5)
+    args = parser.parse_args()
+
+    if args.question:
         print_results(search(args.question, k=args.k))
     else:
         # acceptance: the DPIA question must surface Article 35
