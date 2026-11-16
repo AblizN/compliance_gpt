@@ -29,3 +29,13 @@ Ran five questions through search.py. Two results I did not expect.
 - **Recitals outrank the article they explain.** For "What are the lawful bases for processing?" all five hits are recitals from pages 8 and 9. Article 6, the actual list of lawful bases on page 36, does not appear. Recitals are written as explanatory prose, which reads like a question; Article 6 is a terse enumerated list. Cosine similarity rewards the prose. For a cited answer the article is the authoritative source, so similarity alone cannot pick the right chunk. Guess: this needs article numbers in chunk metadata so retrieval can prefer or at least label article text over recital text.
 
 Also visible in the output: the mid-word cuts from the chunk-quality section now show up as rank-1 snippets ("ice of the data protection officer", "Rectif ication"). The chunker fixes are no longer optional.
+
+## Answer prompt: what each rule prevents
+
+prompts/answer.txt states five rules. Each one closes a specific failure.
+
+- **Answer only from the context:** stops the model from filling gaps with what it remembers from training, which may be outdated, from another regulation, or simply invented.
+- **Cite every claim with [n]:** stops unverifiable answers; every sentence can be traced to a numbered passage with its regulation and page, so a wrong claim is caught by checking one passage.
+- **Reply exactly "Not in my sources." when the context does not cover the question:** stops confident guessing on weak retrieval, and the fixed string lets code and evals detect a refusal with a plain string comparison.
+- **Be concise:** stops padding and restated context, where unsupported claims tend to slip in and where a reader loses the one sentence that answers the question.
+- **Do not give legal advice:** stops the model from telling a user what they should do in their own situation; it reports what the regulation says and leaves the decision to a qualified person.
