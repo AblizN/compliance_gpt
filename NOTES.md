@@ -36,6 +36,39 @@ prompts/answer.txt has five rules. Each one is there to stop one kind of bad ans
 
 - Answer only from the context: without it the model fills gaps from memory, and that can be outdated, from another regulation, or made up.
 - Cite every claim with [n]: without it I cannot check the answer. With it, every sentence points to a passage with a regulation and page, so I can look it up.
-- Reply exactly "Not in my sources." when the context does not cover the question: without it the model guesses when retrieval is weak. The fixed text also makes a refusal easy to detect in code and in evals.
+- Reply exactly "Not in my sources." when no passage is relevant: without it the model guesses when retrieval is weak. The fixed text also makes a refusal easy to detect in code and in evals. If the passages cover only part of the question, the model should answer that part. My first version of this rule was stricter and the model refused questions it could mostly answer.
 - Be concise: long answers repeat the context and hide the one sentence that matters. Extra text is also where unsupported claims get in.
 - Do not give legal advice: the model should say what the regulation says, not tell someone what to do in their own case. That is a job for a lawyer.
+
+## First grounded answers (gpt-4o-mini, k=5, temperature 0)
+
+answer.py retrieves five chunks, numbers them, fills prompts/answer.txt and makes one chat call. These are the answers from the demo run.
+
+What is a DPIA?
+
+> A Data Protection Impact Assessment (DPIA) is a process required to evaluate the origin, nature, particularity, and severity of risks associated with the processing of personal data. It is particularly necessary in cases such as systematic and extensive evaluations based on automated processing, large-scale processing of special categories of data, or systematic monitoring of publicly accessible areas [1][2]. The outcome of the DPIA should inform the appropriate measures to ensure compliance with data protection regulations, and if a DPIA indicates a high risk that cannot be mitigated, a consultation with the supervisory authority is required prior to processing [2][3].
+
+What is the right to erasure?
+
+> The right to erasure, also known as the 'right to be forgotten,' allows a data subject to obtain the erasure of personal data concerning them without undue delay. This right applies when the personal data is no longer necessary for the purposes for which it was collected, when the data subject has withdrawn consent, or when the processing does not comply with the GDPR [1][3]. Additionally, if the controller has made the personal data public, they are obliged to inform other controllers processing that data to erase any links or copies [2][4].
+
+What are the lawful bases for processing?
+
+> The lawful bases for processing include:
+>
+> 1. Compliance with a legal obligation to which the controller is subject.
+> 2. Processing necessary for the performance of a task carried out in the public interest or in the exercise of official authority.
+> 3. Further processing for archiving purposes in the public interest, scientific or historical research purposes, or statistical purposes, which should be considered compatible lawful processing operations [1][2].
+> 4. Processing based on the vital interest of another natural person, which should occur only when no other legal basis is manifestly applicable [3].
+> 5. Legitimate interests of the controller, provided that these do not override the fundamental rights and freedoms of the data subject [3][5].
+
+What does Chinese law say about DPIAs? (out of scope)
+
+> Not in my sources.
+
+What I learned from these runs:
+
+- A worked example in the prompt can block its own topic. My first prompt had an example about a DPIA. With it, the model answered "Not in my sources." to every DPIA question, at k = 5, 6, 8 and 10, even when the right passage was in the context. Making the refusal rule softer was not enough. It only worked after I also replaced the example with one about the data protection officer. Questions about the data protection officer still get answered, so the new example does not block its own topic. I do not know why the two examples behave differently.
+- The answer is only as good as the retrieval. The lawful bases answer is wrong in a quiet way: consent and contract are missing, point 3 is not a lawful basis, and points 1 and 2 have no citation. This is the recital problem from the search notes. Article 6 is not in the top five, so the model builds a list from recitals. The answer still reads well, which is the dangerous part.
+- For "What is a DPIA?" the chunk with Article 35(1) is ranked 6th, just outside k=5. The answer comes from the chunks next to it.
+- I checked about ten questions by hand. That is not an eval. The prompt is tuned on a few examples and needs a proper question set before I trust it.
