@@ -1,3 +1,4 @@
+import re
 import sys
 from pathlib import Path
 
@@ -30,17 +31,47 @@ def build_context(results: QueryResult) -> str:
     return "\n".join(lines)
 
 
-def answer(question: str, k: int = 5) -> str:
-    """Answer one question from the retrieved passages only."""
-    context = build_context(retrieve(question, k))
+def build_sources(results: QueryResult) -> list[dict]:
+    """Same order as the context, so [n] in the answer is sources[n-1]."""
+    documents = (results.get("documents") or [[]])[0]
+    metadatas = (results.get("metadatas") or [[]])[0]
+
+    sources = []
+    for n, (doc, meta) in enumerate(zip(documents, metadatas), start=1):
+        text = " ".join(doc.split())
+        sources.append({
+            "n": n,
+            "regulation": meta["regulation"],
+            "page": meta["page"],
+            "snippet": text[:200],
+        })
+    return sources
+
+
+def answer(question: str, k: int = 5) -> dict:
+    """Answer one question from the retrieved passages, with its sources."""
+    results = retrieve(question, k)
     template = PROMPT_PATH.read_text()
-    prompt = template.replace("{context}", context).replace("{question}", question)
+    prompt = template.replace("{context}", build_context(results)).replace("{question}", question)
     response = client.chat.completions.create(
         model=config.CHAT_MODEL,
         temperature=0,
         messages=[{"role": "user", "content": prompt}],
     )
-    return response.choices[0].message.content or ""
+    return {
+        "answer": response.choices[0].message.content or "",
+        "sources": build_sources(results),
+        "model": config.CHAT_MODEL,
+        "k": k,
+    }
+
+
+def print_result(result: dict) -> None:
+    """The answer, then the numbered source list."""
+    print(result["answer"])
+    print()
+    for source in result["sources"]:
+        print(f"[{source['n']}] {source['regulation']} p.{source['page']}  {source['snippet']}")
 
 
 QUESTIONS = [
@@ -56,5 +87,10 @@ if __name__ == "__main__":
     questions = sys.argv[1:2] or QUESTIONS
     for question in questions:
         print(f"### {question}")
-        print(answer(question))
+        result = answer(question)
+        print_result(result)
+
+        # every [n] in the answer needs a source
+        cited = [int(n) for n in re.findall(r"\[(\d+)\]", result["answer"])]
+        assert all(1 <= n <= len(result["sources"]) for n in cited), f"bad citation in {cited}"
         print()
