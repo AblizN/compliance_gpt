@@ -72,3 +72,31 @@ What I learned from these runs:
 - The answer is only as good as the retrieval. The lawful bases answer is wrong in a quiet way: consent and contract are missing, point 3 is not a lawful basis, and points 1 and 2 have no citation. This is the recital problem from the search notes. Article 6 is not in the top five, so the model builds a list from recitals. The answer still reads well, which is the dangerous part.
 - For "What is a DPIA?" the chunk with Article 35(1) is ranked 6th, just outside k=5. The answer comes from the chunks next to it.
 - I checked about ten questions by hand. That is not an eval. The prompt is tuned on a few examples and needs a proper question set before I trust it.
+
+## Citations: the answer as a record
+
+answer() now returns a dict instead of a string: the answer text, the sources, the model and k. The sources are the retrieved passages in rank order, so [n] in the answer is sources[n-1]. print_result() prints the answer and then the numbered sources.
+
+One rendered result, for "What is the right to erasure?":
+
+> The right to erasure, also known as the 'right to be forgotten,' allows a data subject to obtain the erasure of personal data concerning them without undue delay. This right applies when the personal data is no longer necessary for the purposes for which it was collected, when the data subject has withdrawn consent, or when the processing does not comply with the GDPR [1][3]. Additionally, if the controller has made the personal data public, they are obliged to inform other controllers processing that data to erase any links or copies [2][4].
+>
+> [1] gdpr p.43  ll not adversely affect the rights and freedoms of others. Section 3 Rectif ication and erasure Article 16 Right to rectification The data subject shall have the right to obtain from the controller wi
+> [2] gdpr p.13  purposes in the public interest, scientific or historical research purposes or statistical purposes, or for the establishment, exercise or defence of legal claims. (66) To strengthen the right to be f
+> [3] gdpr p.12  rticular, a data subject should have the right to have his or her personal data erased and no longer processed where the personal data are no longer necessary in relation to the purposes for which the
+> [4] gdpr p.44  rmation society services referred to in Article 8(1). 2. Where the controller has made the personal data public and is obliged pursuant to paragraph 1 to erase the personal data, the controller, takin
+> [5] gdpr p.12  before the information is delivered, the data subject specify the information or processing activities to which the request relates. (64) The controller should use all reasonable measures to verify th
+
+Citation check on the three in-scope demo questions, k=5:
+
+- What is a DPIA? cites [1] and [2].
+- What is the right to erasure? cites [1], [2], [3] and [4].
+- What are the lawful bases for processing? cites [1], [2], [3] and [5].
+
+Every cited number has a source. The out-of-scope question returns "Not in my sources." with no citations, but it still comes back with five sources.
+
+What this check does not show:
+
+- It only proves the number is in range. It does not prove the passage supports the claim.
+- The snippet is the first 200 characters of the chunk, and the cited text can come later. Source [1] above starts with Article 16 on rectification, and the erasure text is further down the same chunk.
+- The check only matches the form [2]. A citation written as [1, 2] would not be counted.
