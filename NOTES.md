@@ -100,3 +100,37 @@ What this check does not show:
 - It only proves the number is in range. It does not prove the passage supports the claim.
 - The snippet is the first 200 characters of the chunk, and the cited text can come later. Source [1] above starts with Article 16 on rectification, and the erasure text is further down the same chunk.
 - The check only matches the form [2]. A citation written as [1, 2] would not be counted.
+
+## Guardrail: refusing on a weak best match
+
+answer() now looks at the best retrieval score before it calls the chat model. The collection uses cosine distance, and the results come back closest first, so the top similarity is 1 minus the first distance. If it is below config.SIMILARITY_THRESHOLD, answer() returns "Not in my sources." with no sources and refused set to True. The chat model is not called, so a refusal costs one embedding call and nothing else.
+
+Top similarity for eight questions, k=5:
+
+In scope:
+
+- When must a data breach be reported? 0.655
+- What are the lawful bases for processing? 0.626
+- What is the right to erasure? 0.597
+- What is the GDPR fine cap? 0.521
+- What is a DPIA? 0.476
+
+Out of scope:
+
+- What does Chinese law say about DPIAs? 0.399
+- What is the corporate tax rate in Ireland? 0.298
+- Where is the best pizza in Rome? 0.117
+
+How I picked the threshold:
+
+- I started at 0.35. The Chinese law question scored 0.399, so it passed the check and reached the chat model.
+- The lowest in-scope score is 0.476 and the highest out-of-scope score is 0.399. I set the threshold to 0.44, the middle of that gap.
+- With 0.44, all five in-scope questions are answered and all three out-of-scope questions are refused before the chat call.
+
+A second check after the chat call: if the model itself replies "Not in my sources.", answer() returns the same refusal with no sources. This covers questions that score above the threshold but that the passages do not answer. It also fixes the case from the citations notes, where a refusal still came back with five sources.
+
+What this does not show:
+
+- The gap is narrow. "What is a DPIA?" is only 0.036 above the threshold, so an in-scope question with different wording could be refused.
+- The score measures how close the topic is, not whether the passage answers the question. The Chinese law question scores 0.399 because it mentions DPIAs.
+- Eight questions is not an eval. The threshold needs a larger question set before I trust it.

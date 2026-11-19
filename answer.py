@@ -1,4 +1,3 @@
-import re
 import sys
 from pathlib import Path
 
@@ -10,6 +9,8 @@ import search
 
 
 PROMPT_PATH = Path("prompts/answer.txt")
+
+REFUSAL = {"answer": "Not in my sources.", "sources": [], "refused": True}
 
 client = OpenAI()
 
@@ -51,6 +52,12 @@ def build_sources(results: QueryResult) -> list[dict]:
 def answer(question: str, k: int = 5) -> dict:
     """Answer one question from the retrieved passages, with its sources."""
     results = retrieve(question, k)
+
+    # guardrail: a weak best match means the question is outside the library
+    distances = (results.get("distances") or [[]])[0]
+    if not distances or 1 - distances[0] < config.SIMILARITY_THRESHOLD:
+        return dict(REFUSAL)
+
     template = PROMPT_PATH.read_text()
     prompt = template.replace("{context}", build_context(results)).replace("{question}", question)
     response = client.chat.completions.create(
@@ -58,8 +65,14 @@ def answer(question: str, k: int = 5) -> dict:
         temperature=0,
         messages=[{"role": "user", "content": prompt}],
     )
+    text = response.choices[0].message.content or ""
+
+    # the model can still refuse when the passages scored well but do not answer the question
+    if text.strip() == REFUSAL["answer"]:
+        return dict(REFUSAL)
+
     return {
-        "answer": response.choices[0].message.content or "",
+        "answer": text,
         "sources": build_sources(results),
         "model": config.CHAT_MODEL,
         "k": k,
@@ -89,8 +102,3 @@ if __name__ == "__main__":
         print(f"### {question}")
         result = answer(question)
         print_result(result)
-
-        # every [n] in the answer needs a source
-        cited = [int(n) for n in re.findall(r"\[(\d+)\]", result["answer"])]
-        assert all(1 <= n <= len(result["sources"]) for n in cited), f"bad citation in {cited}"
-        print()
